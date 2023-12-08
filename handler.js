@@ -1,5 +1,3 @@
-// https://business.whatsapp.com/blog/how-to-use-webhooks-from-whatsapp-business-api
-
 const serverless = require('serverless-http')
 const express = require('express')
 const whapi = require('api')('@whapi/v1.7.5#20a0zlpqylhix');
@@ -10,11 +8,24 @@ const msg_token = process.env.MSG_TOKEN
 
 whapi.auth(msg_token);
 
+const idioms = [
+    {
+        re: /bats in (\w+) belfry/i,
+        replace: "noodles in $1 noggin"
+    }
+]
+
+
 app.post('/webhooks', (req, res) => {
     const body = JSON.parse(req.body)
 
     console.log(body);
     const promises = body.messages.map(msg => {
+
+        if (msg.source === 'api') {
+            console.log("msg is from api")
+            return Promise.resolve()
+        }
 
         // not target group
         if (msg.chat_id !== chat_id) {
@@ -22,8 +33,23 @@ app.post('/webhooks', (req, res) => {
             return Promise.resolve()
         }
 
-        console.log("sending")
-        return whapi.sendMessageText({typing_time: 0, to: chat_id, body: `echo: ${msg.text.body}`})
+        let text
+        for (const idiom of idioms) {
+            if (msg.text.body.match(idiom.re)) {
+                const replaced = msg.text.body.replace(idiom.re, idiom.replace)
+                text = `uh oh! it appears you used a speciesist phrase! next time, try '${replaced}'`
+                break
+            }
+        }
+
+        if (!text) {
+            console.log("no triggering idioms found")
+            return Promise.resolve()
+        }
+
+        console.log("triggering idiom detected! admonishing: " + text)
+        // return Promise.resolve()
+        return whapi.sendMessageText({typing_time: 0, to: chat_id, body: text, quoted: msg.id})
     })
     
     Promise.all(promises)
