@@ -1,0 +1,20 @@
+service: remorahchat
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  lambdaHashingVersion: 20201221
+  environment:
+    MSG_TOKEN: ${env:MSG_TOKEN}
+    CHAT_ID: ${env:CHAT_ID}
+
+plugins:
+  - serverless-offline
+
+functions:
+  app:
+    handler: handler.handler
+    events:
+      - http: ANY /
+      - http: ANY /{proxy+}

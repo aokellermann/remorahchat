@@ -1,0 +1,17 @@
+{
+  "name": "remorahchat",
+  "version": "1.0.0",
+  "description": "Remorah WhatsApp chat bot",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Antony Kellermann",
+  "license": "MIT",
+  "dependencies": {
+    "api": "^6.1.1",
+    "express": "^4.18.2",
+    "serverless-http": "^3.2.0",
+    "serverless-offline": "^13.3.0"
+  }
+}
