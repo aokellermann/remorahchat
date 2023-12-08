@@ -1,17 +1,18 @@
 const serverless = require('serverless-http')
 const express = require('express')
 const whapi = require('api')('@whapi/v1.7.5#20a0zlpqylhix');
+const pg = require('pg')
 const app = express()
 
 const chat_id = process.env.CHAT_ID
 const msg_token = process.env.MSG_TOKEN
+const pg_conn = process.env.PG_CONN
 const is_offline = process.env.IS_OFFLINE
 
 if (is_offline) {
     console.log("offline mode")
 }
 
-whapi.auth(msg_token);
 
 const idioms = [
     {
@@ -30,10 +31,6 @@ const idioms = [
         "re": /ants in your pants/i,
         "replace": "itches in your britches"
     },
-    // {
-    //     "re": /ape/i,
-    //     "replace": "impersonate"
-    // },
     {
         "re": /(back\w*) the wrong horse/i,
         "replace": "$1 the wrong team"
@@ -58,18 +55,10 @@ const idioms = [
         "re": /beat(\w*) a dead horse/i,
         "replace": "feed$1 a fed horse"
     },
-    // {
-    //     "re": /be catty/i,
-    //     "replace": "backbite"
-    // },
     {
         "re": /bee(\w+) in (\w+) bonnet/i,
         "replace": "thorn$1 in $2 side"
     },
-    // {
-    //     "re": /be in the doghouse/i,
-    //     "replace": "be on someone's bad side"
-    // },
     {
         "re": /bigger fish to fry/i,
         "replace": "bigger fish to free"
@@ -178,30 +167,14 @@ const idioms = [
         "re": /have a dog in this fight/i,
         "replace": "have a stake in this game"
     },
-    // {
-    //     "re": /he's a catch/i,
-    //     "replace": "he's a match"
-    // },
-    // {
-    //     "re": /hog/i,
-    //     "replace": "monopolize"
-    // },
     {
         "re": /hold your horses/i,
         "replace": "cool your jets"
     },
-    // {
-    //     "re": /hooked/i,
-    //     "replace": "obsessed"
-    // },
     {
         "re": /horsing around/i,
         "replace": "messing around"
     },
-    // {
-    //     "re": /hounded/i,
-    //     "replace": "hassled"
-    // },
     {
         "re": /two birds with one stone/i,
         "replace": "two birds with one scone"
@@ -238,10 +211,6 @@ const idioms = [
         "re": /more than one way to skin a cat/i,
         "replace": "more than one way to peel an orange"
     },
-    // {
-    //     "re": "not my circus, not my monkeys",
-    //     "replace": "not my problem"
-    // },
     {
         "re": /my first rodeo/i,
         "replace": "my first roadshow"
@@ -362,10 +331,6 @@ const idioms = [
         "re": /weasel/i,
         "replace": "con man"
     },
-    // {
-    //     "re": /we were chomping at the bit/i,
-    //     "replace": "we couldn't contain ourselves"
-    // },
     {
         "re": /wild goose\s*chase/i,
         "replace": "wild gooseberry chase"
@@ -399,11 +364,14 @@ app.post('/webhooks', (req, res) => {
         }
 
         let text
-        for (const idiom of idioms) {
+        let idiom_id
+        for (let i = 0; i < idioms.length; ++i) {
+            const idiom = idioms[i]
             if (msg.text.body.match(idiom.re)) {
                 console.log("matched: " + idiom.re)
                 const replaced = msg.text.body.replace(idiom.re, idiom.replace)
                 text = `uh oh! it appears you used a speciesist phrase! next time, try '${replaced}'`
+                idiom_id = i
                 break
             }
         }
@@ -415,10 +383,19 @@ app.post('/webhooks', (req, res) => {
 
         console.log("triggering idiom detected! admonishing: " + text)
 
+        const db = function() {
+            const client = new pg.Client({ connectionString: pg_conn, ssl: { rejectUnauthorized: false}})
+            return client.connect()
+                .then(x => client.query("insert into remorahchat.admonition (user_id, user_name, idiom_id) values ($1, $2, $3)",
+                    [msg.from, msg.from_name, idiom_id]))
+        }
+
         if (is_offline) {
-            return Promise.resolve()
+            return db()
         } else {
+            whapi.auth(msg_token);
             return whapi.sendMessageText({typing_time: 0, to: chat_id, body: text, quoted: msg.id})
+                .then(x => db())
         }
     })
 

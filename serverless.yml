@@ -8,6 +8,7 @@ provider:
   environment:
     MSG_TOKEN: ${env:MSG_TOKEN}
     CHAT_ID: ${env:CHAT_ID}
+    PG_CONN: ${env:PG_CONN}
 
 plugins:
   - serverless-offline
