@@ -363,6 +363,21 @@ app.post('/webhooks', (req, res) => {
             return Promise.resolve()
         }
 
+        if (msg.text.body === "/idiomstats") {
+            const client = new pg.Client({ connectionString: pg_conn, ssl: { rejectUnauthorized: false}})
+            return client.connect()
+                .then(x => client.query("select user_name, count(*) as count from remorahchat.admonition group by user_name order by 2, 1 desc"))
+                .then(x => {
+                    let text = "speciesism high scores:\n"
+                    for (const row of x.rows) {
+                        text += `${row["user_name"]}: ${row["count"]}\n`
+                    }
+                    text = text.trimEnd()
+                    whapi.auth(msg_token);
+                    return whapi.sendMessageText({typing_time: 0, to: chat_id, body: text, quoted: msg.id})
+                })
+        }
+
         let text
         let idiom_id
         for (let i = 0; i < idioms.length; ++i) {
