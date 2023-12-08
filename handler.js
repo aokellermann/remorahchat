@@ -5,6 +5,11 @@ const app = express()
 
 const chat_id = process.env.CHAT_ID
 const msg_token = process.env.MSG_TOKEN
+const is_offline = process.env.IS_OFFLINE
+
+if (is_offline) {
+    console.log("offline mode")
+}
 
 whapi.auth(msg_token);
 
@@ -48,10 +53,14 @@ app.post('/webhooks', (req, res) => {
         }
 
         console.log("triggering idiom detected! admonishing: " + text)
-        // return Promise.resolve()
-        return whapi.sendMessageText({typing_time: 0, to: chat_id, body: text, quoted: msg.id})
+
+        if (is_offline) {
+            return Promise.resolve()
+        } else {
+            return whapi.sendMessageText({typing_time: 0, to: chat_id, body: text, quoted: msg.id})
+        }
     })
-    
+
     Promise.all(promises)
         .then(x => res.sendStatus(200))
         .catch(x => console.log(x))
