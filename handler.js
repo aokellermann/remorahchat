@@ -345,6 +345,29 @@ const idioms = [
     }
 ]
 
+const get_high_score_url = function() {
+    const client = new pg.Client({ connectionString: pg_conn, ssl: { rejectUnauthorized: false}})
+    return client.connect()
+        .then(x => client.query("select user_name, count(*) as count from remorahchat.admonition group by user_name order by 1"))
+        .then(x => {
+            const users = x.rows.map(x => x["user_name"])
+            const scores = x.rows.map(x => x["count"])
+            const chart = {
+                type: 'bar',
+                data: {
+                    labels: users,
+                    datasets: [
+                        {
+                            label: 'Users',
+                            data: scores
+                        }
+                    ]
+                }
+            }
+
+            return "https://quickchart.io/chart?c=" + JSON.stringify(chart)
+        })
+}
 
 app.post('/webhooks', (req, res) => {
     const body = JSON.parse(req.body)
@@ -364,18 +387,10 @@ app.post('/webhooks', (req, res) => {
         }
 
         if (msg.text.body === "/idiomstats") {
-            const client = new pg.Client({ connectionString: pg_conn, ssl: { rejectUnauthorized: false}})
-            return client.connect()
-                .then(x => client.query("select user_name, count(*) as count from remorahchat.admonition group by user_name order by 2 desc, 1"))
-                .then(x => {
-                    let text = "speciesism high scores:\n"
-                    for (const row of x.rows) {
-                        text += `${row["user_name"]}: ${row["count"]}\n`
-                    }
-                    text = text.trimEnd()
-                    whapi.auth(msg_token);
-                    return whapi.sendMessageText({typing_time: 0, to: chat_id, body: text, quoted: msg.id})
-                })
+            return get_high_score_url().then(url => {
+                whapi.auth(msg_token);
+                return whapi.sendMessageImage({to: chat_id, media: url, quoted: msg.id})
+            })
         }
 
         let text
@@ -420,27 +435,7 @@ app.post('/webhooks', (req, res) => {
 })
 
 app.get("/idioms/highscores/img", (req, res) => {
-    const client = new pg.Client({ connectionString: pg_conn, ssl: { rejectUnauthorized: false}})
-    return client.connect()
-        .then(x => client.query("select user_name, count(*) as count from remorahchat.admonition group by user_name order by 1"))
-        .then(x => {
-            const users = x.rows.map(x => x["user_name"])
-            const scores = x.rows.map(x => x["count"])
-            const chart = {
-                type: 'bar',
-                data: {
-                    labels: users,
-                    datasets: [
-                        {
-                            label: 'Users',
-                            data: scores
-                        }
-                    ]
-                }
-            }
-
-            return res.redirect("https://quickchart.io/chart?c=" + JSON.stringify(chart))
-        })
+    return get_high_score_url().then(url => res.redirect(url))
 })
 
 module.exports.handler = serverless(app);
