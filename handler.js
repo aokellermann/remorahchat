@@ -419,4 +419,28 @@ app.post('/webhooks', (req, res) => {
         .catch(x => console.log(x))
 })
 
+app.get("/idioms/highscores/img", (req, res) => {
+    const client = new pg.Client({ connectionString: pg_conn, ssl: { rejectUnauthorized: false}})
+    return client.connect()
+        .then(x => client.query("select user_name, count(*) as count from remorahchat.admonition group by user_name order by 1"))
+        .then(x => {
+            const users = x.rows.map(x => x["user_name"])
+            const scores = x.rows.map(x => x["count"])
+            const chart = {
+                type: 'bar',
+                data: {
+                    labels: users,
+                    datasets: [
+                        {
+                            label: 'Users',
+                            data: scores
+                        }
+                    ]
+                }
+            }
+
+            return res.redirect("https://quickchart.io/chart?c=" + JSON.stringify(chart))
+        })
+})
+
 module.exports.handler = serverless(app);
