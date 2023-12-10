@@ -13,6 +13,7 @@ if (is_offline) {
     console.log("offline mode")
 }
 
+whapi.auth(msg_token);
 
 const idioms = [
     {
@@ -345,10 +346,15 @@ const idioms = [
     }
 ]
 
+
+const pg_client = function() {
+    const client = new pg.Client({connectionString: pg_conn})
+    return client.connect().then(x => client)
+}
+
 const get_high_score_url = function () {
-    const client = new pg.Client({connectionString: pg_conn, ssl: {rejectUnauthorized: false}})
-    return client.connect()
-        .then(x => client.query("select user_name, count(*) as count from remorahchat.admonition group by user_name order by 1"))
+    return pg_client()
+        .then(client => client.query("select user_name, count(*) as count from remorahchat.admonition group by user_name order by 1"))
         .then(x => {
             const users = x.rows.map(x => x["user_name"])
             const scores = x.rows.map(x => x["count"])
@@ -416,7 +422,6 @@ app.post('/webhooks', (req, res) => {
 
         if (msg.text.body === "/idiomstats") {
             return get_high_score_url().then(url => {
-                whapi.auth(msg_token);
                 return whapi.sendMessageImage({to: chat_id, media: url, quoted: msg.id})
             })
         }
@@ -442,16 +447,14 @@ app.post('/webhooks', (req, res) => {
         console.log("triggering idiom detected! admonishing: " + text)
 
         const db = function () {
-            const client = new pg.Client({connectionString: pg_conn, ssl: {rejectUnauthorized: false}})
-            return client.connect()
-                .then(x => client.query("insert into remorahchat.admonition (user_id, user_name, idiom_id) values ($1, $2, $3)",
+            return pg_client()
+                .then(client => client.query("insert into remorahchat.admonition (user_id, user_name, idiom_id) values ($1, $2, $3)",
                     [msg.from, msg.from_name, idiom_id]))
         }
 
         if (is_offline) {
             return db()
         } else {
-            whapi.auth(msg_token);
             return whapi.sendMessageText({typing_time: 0, to: chat_id, body: text, quoted: msg.id})
                 .then(x => db())
         }
