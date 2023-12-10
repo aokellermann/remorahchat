@@ -434,6 +434,11 @@ app.post('/webhooks', (req, res) => {
         .catch(x => console.log(x))
 })
 
+app.get("/idioms", (req, res) => {
+    let i = 0
+    return res.json(idioms.map(x => { return { id: i++, re: x.re.toString(), replace: x.replace}}))
+})
+
 app.get("/idioms/highscores/img", (req, res) => {
     return get_high_score_url().then(url => res.redirect(url))
 })
