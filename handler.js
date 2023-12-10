@@ -345,8 +345,8 @@ const idioms = [
     }
 ]
 
-const get_high_score_url = function() {
-    const client = new pg.Client({ connectionString: pg_conn, ssl: { rejectUnauthorized: false}})
+const get_high_score_url = function () {
+    const client = new pg.Client({connectionString: pg_conn, ssl: {rejectUnauthorized: false}})
     return client.connect()
         .then(x => client.query("select user_name, count(*) as count from remorahchat.admonition group by user_name order by 1"))
         .then(x => {
@@ -358,10 +358,38 @@ const get_high_score_url = function() {
                     labels: users,
                     datasets: [
                         {
-                            label: 'Users',
-                            data: scores
+                            label: 'Speciesist Utterances',
+                            data: scores,
+                            backgroundColor: [
+                                "rgba(255, 99, 132, 0.2)",
+                                "rgba(255, 159, 64, 0.2)",
+                                "rgba(255, 205, 86, 0.2)",
+                                "rgba(75, 192, 192, 0.2)",
+                                "rgba(54, 162, 235, 0.2)",
+                            ],
+                            borderColor: [
+                                "rgb(255, 99, 132)",
+                                "rgb(255, 159, 64)",
+                                "rgb(255, 205, 86)",
+                                "rgb(75, 192, 192)",
+                                "rgb(54, 162, 235)",
+                            ],
+                            fill: false,
+                            borderWidth: 1
                         }
                     ]
+                },
+                options: {
+                    scales: {
+                        yAxes: [
+                            {
+                                ticks: {
+                                    beginAtZero: true,
+                                    stepSize: 1
+                                }
+                            }
+                        ]
+                    }
                 }
             }
 
@@ -413,8 +441,8 @@ app.post('/webhooks', (req, res) => {
 
         console.log("triggering idiom detected! admonishing: " + text)
 
-        const db = function() {
-            const client = new pg.Client({ connectionString: pg_conn, ssl: { rejectUnauthorized: false}})
+        const db = function () {
+            const client = new pg.Client({connectionString: pg_conn, ssl: {rejectUnauthorized: false}})
             return client.connect()
                 .then(x => client.query("insert into remorahchat.admonition (user_id, user_name, idiom_id) values ($1, $2, $3)",
                     [msg.from, msg.from_name, idiom_id]))
@@ -436,7 +464,9 @@ app.post('/webhooks', (req, res) => {
 
 app.get("/idioms", (req, res) => {
     let i = 0
-    return res.json(idioms.map(x => { return { id: i++, re: x.re.toString(), replace: x.replace}}))
+    return res.json(idioms.map(x => {
+        return {id: i++, re: x.re.toString(), replace: x.replace}
+    }))
 })
 
 app.get("/idioms/highscores/img", (req, res) => {
