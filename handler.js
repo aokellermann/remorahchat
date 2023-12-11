@@ -426,30 +426,32 @@ app.post('/webhooks', (req, res) => {
             })
         }
 
-        let text
-        let idiom_id
+        let text = msg.text.body
+        let idiom_ids = []
         for (let i = 0; i < idioms.length; ++i) {
             const idiom = idioms[i]
-            if (msg.text.body.match(idiom.re)) {
+            while (text.match(idiom.re)) {
                 console.log("matched: " + idiom.re)
-                const replaced = msg.text.body.replace(idiom.re, idiom.replace)
-                text = `uh oh! it appears you used a speciesist phrase! next time, try '${replaced}'`
-                idiom_id = i
-                break
+                text = text.replace(idiom.re, idiom.replace)
+                idiom_ids.push(i)
             }
         }
 
-        if (!text) {
+        if (idiom_ids.length === 0) {
             console.log("no triggering idioms found")
             return Promise.resolve()
         }
 
-        console.log("triggering idiom detected! admonishing: " + text)
+        text = `uh oh! it appears you used a speciesist phrase! next time, try '${text}'`
+        console.log("triggering idiom(s) detected! admonishing: " + text)
 
         const db = function () {
+            let i = 3
+            const values = idiom_ids.map(x =>  `($1, $2, $${i++})`).join(", ")
             return pg_client()
-                .then(client => client.query("insert into remorahchat.admonition (user_id, user_name, idiom_id) values ($1, $2, $3)",
-                    [msg.from, msg.from_name, idiom_id]))
+                .then(client => client.query(
+                    "insert into remorahchat.admonition (user_id, user_name, idiom_id) values " + values,
+                    [msg.from, msg.from_name].concat(idiom_ids)))
         }
 
         if (is_offline) {
