@@ -44,13 +44,13 @@ npm i
 # your whapi token
 export MSG_TOKEN=XXX
 
-# your chat id
+# your chat id(s)
 # for regular chats you can find id using this endpoint: https://whapi.readme.io/reference/getchats
 # for group chats you can find id using this endpoint: https://whapi.readme.io/reference/getgroups
-export CHAT_ID=YYY
+export CHAT_IDS=YYY,ZZZ
 
 # postgres connection string
-export MONGO_CONN=ZZZ
+export MONGO_CONN=AAA
 
 # deploy to aws lambda
 serverless deploy

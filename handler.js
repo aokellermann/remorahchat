@@ -4,7 +4,7 @@ const whapi = require('api')('@whapi/v1.7.5#20a0zlpqylhix');
 const { MongoClient, ServerApiVersion } = require('mongodb')
 const app = express()
 
-const chat_id = process.env.CHAT_ID
+const chat_ids = process.env.CHAT_IDS.split(',')
 const msg_token = process.env.MSG_TOKEN
 const mongo_conn = process.env.MONGO_CONN
 const is_offline = process.env.IS_OFFLINE
@@ -427,14 +427,14 @@ app.post('/webhooks', (req, res) => {
         }
 
         // not target group
-        if (msg.chat_id !== chat_id) {
+        if (!chat_ids.includes(msg.chat_id)) {
             console.log("wrong chat_id")
             return Promise.resolve()
         }
 
         if (msg.text.body === "/idiomstats") {
             return get_high_score_url().then(url => {
-                return whapi.sendMessageImage({to: chat_id, media: url, quoted: msg.id})
+                return whapi.sendMessageImage({to: msg.chat_id, media: url, quoted: msg.id})
             })
         }
 
@@ -471,7 +471,7 @@ app.post('/webhooks', (req, res) => {
         if (is_offline) {
             return db()
         } else {
-            return whapi.sendMessageText({typing_time: 0, to: chat_id, body: text, quoted: msg.id})
+            return whapi.sendMessageText({typing_time: 0, to: msg.chat_id, body: text, quoted: msg.id})
                 .then(x => db())
         }
     })

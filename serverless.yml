@@ -6,7 +6,7 @@ provider:
   runtime: nodejs14.x
   environment:
     MSG_TOKEN: ${env:MSG_TOKEN}
-    CHAT_ID: ${env:CHAT_ID}
+    CHAT_IDS: ${env:CHAT_IDS}
     MONGO_CONN: ${env:MONGO_CONN}
 
 plugins:
