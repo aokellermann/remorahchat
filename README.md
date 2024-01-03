@@ -31,9 +31,9 @@ Create an account at https://whapi.cloud/ to get an API token.
 When lambda deploy completes, it will tell you the lambda's gateway endpoint. In your whapi channel, change the webhooks URL
 to `gateway/webhooks` where `gateway` is the lambda gateway. Make sure only the `messages POST` button is toggled.
 
-### Postgres
+### Mongo 
 
-Run files in `migrations` folder in order to set up database.
+You can get a free shared cluster on Mongo Atlas.
 
 ## Deploying
 
@@ -50,7 +50,7 @@ export MSG_TOKEN=XXX
 export CHAT_ID=YYY
 
 # postgres connection string
-export PG_CONN=ZZZ
+export MONGO_CONN=ZZZ
 
 # deploy to aws lambda
 serverless deploy

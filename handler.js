@@ -1,12 +1,12 @@
 const serverless = require('serverless-http')
 const express = require('express')
 const whapi = require('api')('@whapi/v1.7.5#20a0zlpqylhix');
-const pg = require('pg')
+const { MongoClient, ServerApiVersion } = require('mongodb')
 const app = express()
 
 const chat_id = process.env.CHAT_ID
 const msg_token = process.env.MSG_TOKEN
-const pg_conn = process.env.PG_CONN
+const mongo_conn = process.env.MONGO_CONN
 const is_offline = process.env.IS_OFFLINE
 
 if (is_offline) {
@@ -346,18 +346,30 @@ const idioms = [
     }
 ]
 
+const mongo_client = function() {
+    const client = new MongoClient(mongo_conn, {
+        serverApi: {
+            version: ServerApiVersion.v1,
+            strict: true,
+            deprecationErrors: true,
+        }
+    });
 
-const pg_client = function() {
-    const client = new pg.Client({connectionString: pg_conn})
-    return client.connect().then(x => client)
+    return client.connect().then(client => client.db("RemorahChat"))
 }
 
 const get_high_score_url = function () {
-    return pg_client()
-        .then(client => client.query("select user_name, count(*) as count from remorahchat.admonition group by user_name order by 1"))
+    const pipeline = [
+        { $group: { _id: "$userName", count: { $count: { } } } },
+        { $sort: { _id: 1 } },
+    ]
+    return mongo_client()
+        .then(client => client.collection("Admonitions").aggregate(pipeline))
+        .then(cursor => cursor.toArray())
         .then(x => {
-            const users = x.rows.map(x => x["user_name"])
-            const scores = x.rows.map(x => x["count"])
+            console.log(x)
+            const users = x.map(x => x["_id"])
+            const scores = x.map(x => x["count"])
             const chart = {
                 type: 'bar',
                 data: {
@@ -446,12 +458,14 @@ app.post('/webhooks', (req, res) => {
         console.log("triggering idiom(s) detected! admonishing: " + text)
 
         const db = function () {
-            let i = 3
-            const values = idiom_ids.map(x =>  `($1, $2, $${i++})`).join(", ")
-            return pg_client()
-                .then(client => client.query(
-                    "insert into remorahchat.admonition (user_id, user_name, idiom_id) values " + values,
-                    [msg.from, msg.from_name].concat(idiom_ids)))
+            const documents = idiom_ids.map(idiomId => { return {
+                userId: msg.from,
+                userName: msg.from_name,
+                idiomId: idiomId,
+                admonishedAt: new Date()
+            }})
+            return mongo_client()
+                .then(client => client.collection("Admonitions").insertMany(documents))
         }
 
         if (is_offline) {
