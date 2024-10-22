@@ -1,6 +1,6 @@
 const serverless = require('serverless-http')
 const express = require('express')
-const whapi = require('api')('@whapi/v1.7.5#20a0zlpqylhix');
+const whapi = require('api')('@whapi/v1.8.5#169y7mthhm2j5nv5q');
 const { MongoClient, ServerApiVersion } = require('mongodb')
 const app = express()
 
@@ -415,6 +415,101 @@ const get_high_score_url = function () {
         })
 }
 
+const get_chore_score_url = function () {
+    const pipeline = [
+        { $group: { _id: { user: "$userName", chore: "$chore" }, count: { $count: { } } } },
+        { $sort: { _id: 1 } },
+    ]
+    return mongo_client()
+        .then(client => client.collection("Chores").aggregate(pipeline))
+        .then(cursor => cursor.toArray())
+        .then(x => {
+            console.log(x)
+            const d = {}
+            x.forEach(doc => {
+                d[doc["_id"]["user"]] ??= {"trash": 0, "recycling": 0}
+                d[doc["_id"]["user"]][doc["_id"]["chore"]] = doc["count"]
+            })
+            const users = Object.keys(d)
+            const trash = users.map(user => d[user]["trash"])
+            const recycling = users.map(user => d[user]["recycling"])
+            const chart = {
+                type: 'bar',
+                data: {
+                    labels: users,
+                    datasets: [
+                        {
+                            label: 'Trash',
+                            data: trash,
+                            backgroundColor: [
+                                "rgba(255, 99, 132, 0.2)",
+                                "rgba(255, 99, 132, 0.2)",
+                                "rgba(255, 99, 132, 0.2)",
+                                "rgba(255, 99, 132, 0.2)",
+                                "rgba(255, 99, 132, 0.2)",
+                            ],
+                            borderColor: [
+                                "rgb(255, 99, 132)",
+                                "rgb(255, 99, 132)",
+                                "rgb(255, 99, 132)",
+                                "rgb(255, 99, 132)",
+                                "rgb(255, 99, 132)",
+                            ],
+                            fill: false,
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Recycling',
+                            data: recycling,
+                            backgroundColor: [
+                                "rgba(75, 192, 192, 0.2)",
+                                "rgba(75, 192, 192, 0.2)",
+                                "rgba(75, 192, 192, 0.2)",
+                                "rgba(75, 192, 192, 0.2)",
+                                "rgba(75, 192, 192, 0.2)",
+                            ],
+                            borderColor: [
+                                "rgb(75, 192, 192)",
+                                "rgb(75, 192, 192)",
+                                "rgb(75, 192, 192)",
+                                "rgb(75, 192, 192)",
+                                "rgb(75, 192, 192)",
+                            ],
+                            fill: false,
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        yAxes: [
+                            {
+                                ticks: {
+                                    beginAtZero: true,
+                                    stepSize: 1
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+
+            return "https://quickchart.io/chart?c=" + JSON.stringify(chart)
+        })
+}
+
+const perform_chore = function (chore, msg) {
+    const doc = {
+        userId: msg.from,
+        userName: msg.from_name,
+        chore: chore,
+        choredAt: new Date()
+    }
+    return mongo_client()
+        .then(client => client.collection("Chores").insertOne(doc))
+        .then(_ => whapi.reactToMessage({emoji: '👌'}, {MessageID: msg.id}))
+}
+
 app.post('/webhooks', (req, res) => {
     const body = JSON.parse(req.body)
 
@@ -434,6 +529,19 @@ app.post('/webhooks', (req, res) => {
 
         if (msg.text.body === "/idiomstats") {
             return get_high_score_url().then(url => {
+                return whapi.sendMessageImage({to: msg.chat_id, media: url, quoted: msg.id})
+            })
+        }
+
+        if (msg.text.body === "/trash") {
+            return perform_chore('trash', msg)
+        }
+        if (msg.text.body === "/recycling") {
+            return perform_chore('recycling', msg)
+        }
+
+        if (msg.text.body === "/chorestats") {
+            return get_chore_score_url().then(url => {
                 return whapi.sendMessageImage({to: msg.chat_id, media: url, quoted: msg.id})
             })
         }
