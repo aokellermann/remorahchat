@@ -346,6 +346,24 @@ const idioms = [
     }
 ]
 
+const chores = [
+    {
+        label: 'Trash',
+        field: 'trash',
+        color: [255, 99, 132]
+    },
+    {
+        label: 'Recycling',
+        field: 'recycling',
+        color: [75, 192, 192]
+    },
+    {
+        label: 'Dishes',
+        field: 'dishes',
+        color: [255, 159, 64]
+    }
+]
+
 const mongo_client = function() {
     const client = new MongoClient(mongo_conn, {
         serverApi: {
@@ -427,58 +445,24 @@ const get_chore_score_url = function () {
             console.log(x)
             const d = {}
             x.forEach(doc => {
-                d[doc["_id"]["user"]] ??= {"trash": 0, "recycling": 0}
+                const def = {}
+                chores.forEach(chore => def[chore.field] = 0)
+                d[doc["_id"]["user"]] ??= def
                 d[doc["_id"]["user"]][doc["_id"]["chore"]] = doc["count"]
             })
             const users = Object.keys(d)
-            const trash = users.map(user => d[user]["trash"])
-            const recycling = users.map(user => d[user]["recycling"])
             const chart = {
                 type: 'bar',
                 data: {
                     labels: users,
-                    datasets: [
-                        {
-                            label: 'Trash',
-                            data: trash,
-                            backgroundColor: [
-                                "rgba(255, 99, 132, 0.2)",
-                                "rgba(255, 99, 132, 0.2)",
-                                "rgba(255, 99, 132, 0.2)",
-                                "rgba(255, 99, 132, 0.2)",
-                                "rgba(255, 99, 132, 0.2)",
-                            ],
-                            borderColor: [
-                                "rgb(255, 99, 132)",
-                                "rgb(255, 99, 132)",
-                                "rgb(255, 99, 132)",
-                                "rgb(255, 99, 132)",
-                                "rgb(255, 99, 132)",
-                            ],
-                            fill: false,
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Recycling',
-                            data: recycling,
-                            backgroundColor: [
-                                "rgba(75, 192, 192, 0.2)",
-                                "rgba(75, 192, 192, 0.2)",
-                                "rgba(75, 192, 192, 0.2)",
-                                "rgba(75, 192, 192, 0.2)",
-                                "rgba(75, 192, 192, 0.2)",
-                            ],
-                            borderColor: [
-                                "rgb(75, 192, 192)",
-                                "rgb(75, 192, 192)",
-                                "rgb(75, 192, 192)",
-                                "rgb(75, 192, 192)",
-                                "rgb(75, 192, 192)",
-                            ],
-                            fill: false,
-                            borderWidth: 1
-                        }
-                    ]
+                    datasets: chores.map(chore => { return {
+                        label: chore.label,
+                        data: users.map(user => d[user][chore.field]),
+                        backgroundColor: `rgba(${chore.color[0]}, ${chore.color[1]}, ${chore.color[2]}, 0.2)`,
+                        borderColor: `rgb(${chore.color[0]}, ${chore.color[1]}, ${chore.color[2]})`,
+                        fill: false,
+                        borderWidth: 1
+                    }}),
                 },
                 options: {
                     scales: {
@@ -533,11 +517,10 @@ app.post('/webhooks', (req, res) => {
             })
         }
 
-        if (msg.text.body === "/trash") {
-            return perform_chore('trash', msg)
-        }
-        if (msg.text.body === "/recycling") {
-            return perform_chore('recycling', msg)
+        for (let chore of chores) {
+            if (msg.text.body === `/${chore.field}`) {
+                return perform_chore(chore.field, msg)
+            }
         }
 
         if (msg.text.body === "/chorestats") {
