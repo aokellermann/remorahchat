@@ -361,7 +361,12 @@ const chores = [
         label: 'Dishes',
         field: 'dishes',
         color: [255, 159, 64]
-    }
+    },
+    {
+        label: 'Bins',
+        field: 'bins',
+        color: [54, 162, 235]
+    },
 ]
 
 const mongo_client = function() {
