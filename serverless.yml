@@ -8,6 +8,7 @@ provider:
     MSG_TOKEN: ${ssm:/whapi/token}
     CHAT_IDS: ${ssm:/whatsapp/chat_ids}
     MONGO_CONN: ${ssm:/mongo/conn}
+    API_KEY: ${ssm:/key}
 
 plugins:
   - serverless-offline

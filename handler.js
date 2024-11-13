@@ -3,11 +3,13 @@ const express = require('express')
 const whapi = require('api')('@whapi/v1.8.5#169y7mthhm2j5nv5q');
 const { MongoClient, ServerApiVersion } = require('mongodb')
 const app = express()
+app.use(verifyToken)
 
 const chat_ids = process.env.CHAT_IDS.split(',')
 const msg_token = process.env.MSG_TOKEN
 const mongo_conn = process.env.MONGO_CONN
 const is_offline = process.env.IS_OFFLINE
+const api_key = process.env.API_KEY
 
 if (is_offline) {
     console.log("offline mode")
@@ -368,6 +370,14 @@ const chores = [
         color: [54, 162, 235]
     },
 ]
+
+function verifyToken(req, res, next) {
+    if (req.header('x-api-key') !== api_key) {
+        throw new Error("invalid api key");
+    }
+
+    next();
+}
 
 const mongo_client = function() {
     const client = new MongoClient(mongo_conn, {
