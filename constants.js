@@ -350,6 +350,16 @@ const chores = [
         field: 'bins',
         color: [54, 162, 235]
     },
+    {
+        label: 'Surfaces',
+        field: 'surfaces',
+        color: [255, 205, 86]
+    },
+    {
+        label: 'Vacuum',
+        field: 'vacuum',
+        color: [138, 43, 226]
+    },
 ]
 
 module.exports = {
