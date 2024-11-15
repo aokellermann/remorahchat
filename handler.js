@@ -2,6 +2,7 @@ const serverless = require('serverless-http')
 const express = require('express')
 const whapi = require('api')('@whapi/v1.8.5#169y7mthhm2j5nv5q');
 const chrono = require('chrono-node')
+const Splitwise = require('splitwise')
 
 const {idioms, chores} = require('./constants')
 const {chart, get_speciesism, get_chores} = require('./charts')
@@ -235,6 +236,35 @@ async function car(msg) {
     }
 }
 
+async function splitwise_list(msg) {
+    const sw = Splitwise({
+        consumerKey: process.env.SPLITWISE_KEY,
+        consumerSecret: process.env.SPLITWISE_SECRET
+    })
+
+    const group = await sw.getGroup({id: process.env.SPLITWISE_GROUP_ID})
+    const members = new Map()
+    group.members.forEach(x => {
+        members.set(x.id, x.first_name)
+    })
+
+    let text = ""
+    group.simplified_debts.forEach(x => {
+        text += `${members.get(x.from)} owes ${members.get(x.to)} $${x.amount}\n`
+    })
+    await whapi.sendMessageText({typing_time: 0, to: msg.chat_id, body: text, quoted: msg.id})
+}
+
+async function splitwise(msg) {
+    const toks = msg.text.body.split(' ').filter(x => x.length > 0)
+    if (!toks || toks.length <= 1) return
+
+    const cmd = toks[1]
+    if (cmd === "list") {
+        await splitwise_list(msg)
+    }
+}
+
 function get_idioms(msg) {
     let text = msg.text.body
     let idiom_ids = []
@@ -315,6 +345,11 @@ app.post('/webhooks', async (req, res) => {
 
         if (msg.text.body.startsWith('/car')) {
             promises.push(car(msg))
+            return
+        }
+
+        if (msg.text.body.startsWith('/splitwise')) {
+            promises.push(splitwise(msg))
             return
         }
 

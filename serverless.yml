@@ -9,6 +9,9 @@ provider:
     CHAT_IDS: ${ssm:/whatsapp/chat_ids}
     MONGO_CONN: ${ssm:/mongo/conn}
     API_KEY: ${ssm:/key}
+    SPLITWISE_GROUP_ID: ${ssm:/splitwise/group_id}
+    SPLITWISE_KEY: ${ssm:/splitwise/key}
+    SPLITWISE_SECRET: ${ssm:/splitwise/secret}
 
 plugins:
   - serverless-offline

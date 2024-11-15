@@ -56,6 +56,9 @@ The following parameter store keys need to be populated:
 - `/whatsapp/chat_ids`: comma separated chat IDs to enable the bot in. For regular chats you can find id using this endpoint: https://whapi.readme.io/reference/getchats. For group chats you can find id using this endpoint: https://whapi.readme.io/reference/getgroups
 - `/mongo/conn`: mongodb connection string
 - `/key`: API key to access your node server (you can just generate a UUID)
+- `/splitwise/group_id`: splitwise group id
+- `/splitwise/key`: splitwise key
+- `/splitwise/secret`: splitwise secret
 
 ### WhatsApp API
 
@@ -110,6 +113,10 @@ exports = async function(changeEvent) {
     console.log(`Updated ${JSON.stringify(changeEvent.ns)} with counter ${counter.seq_value} result : ${JSON.stringify(updateRes)}`);
 };
 ````
+
+### Splitwise API
+
+Create a key here: https://secure.splitwise.com/oauth_clients
 
 ## Deploying
 
