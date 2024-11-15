@@ -81,6 +81,61 @@ async function chore_stats(msg) {
     await whapi.sendMessageImage({to: msg.chat_id, media: url, quoted: msg.id})
 }
 
+async function shop_list(msg) {
+    const client = await mongo()
+    const docs = await (await client.collection("ShoppingList").find()).toArray()
+    let text
+    if (docs.length === 0) {
+        text = "The shopping list is empty :)"
+    } else {
+        text = ""
+        for (let i = 0; i < docs.length; i++) {
+            text += `${i + 1}. ${docs[i].item}\n`
+        }
+        text = text.trimEnd()
+    }
+    await whapi.sendMessageText({typing_time: 0, to: msg.chat_id, body: text, quoted: msg.id})
+}
+
+async function shop_add(msg, items) {
+    const client = await mongo()
+    await client.collection("ShoppingList").insertMany(items.map(x => {
+        return {
+            item: x,
+            userId: msg.from,
+            userName: msg.from_name,
+            addedAt: new Date()
+        }
+    }))
+    await whapi.reactToMessage({emoji: '👌'}, {MessageID: msg.id})
+}
+
+async function shop_remove(msg, items) {
+    const client = await mongo()
+    await client.collection("ShoppingList").deleteMany({item: {"$in": items}})
+    await whapi.reactToMessage({emoji: '👌'}, {MessageID: msg.id})
+}
+
+async function shop(msg) {
+    const toks = msg.text.body.split(' ').filter(x => x.length > 0)
+    if (!toks || toks.length <= 1) return
+
+    const cmd = toks[1]
+    if (cmd === "list") {
+        await shop_list(msg)
+    } else if (cmd === "add") {
+        const items = toks.slice(2)
+        if (items.length === 0) return
+
+        await shop_add(msg, items)
+    } else if (cmd === "remove") {
+        const items = toks.slice(2)
+        if (items.length === 0) return
+
+        await shop_remove(msg, items)
+    }
+}
+
 function get_idioms(msg) {
     let text = msg.text.body
     let idiom_ids = []
@@ -151,6 +206,11 @@ app.post('/webhooks', async (req, res) => {
 
         if (msg.text.body === "/chorestats") {
             promises.push(chore_stats(msg))
+            return
+        }
+
+        if (msg.text.body.startsWith("/shop")) {
+            promises.push(shop(msg))
             return
         }
 
