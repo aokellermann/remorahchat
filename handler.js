@@ -1,6 +1,7 @@
 const serverless = require('serverless-http')
 const express = require('express')
 const whapi = require('api')('@whapi/v1.8.5#169y7mthhm2j5nv5q');
+const chrono = require('chrono-node')
 
 const {idioms, chores} = require('./constants')
 const {chart, get_speciesism, get_chores} = require('./charts')
@@ -136,6 +137,104 @@ async function shop(msg) {
     }
 }
 
+
+async function car_list(msg) {
+    const client = await mongo()
+    const docs = await (await client.collection("Car").find({endAt: {"$gt": new Date()}}, {sort: {startAt: 1}})).toArray()
+    let text
+    if (docs.length === 0) {
+        text = "The car has no reservations :)"
+    } else {
+        text = "The car has the following reservations\n"
+        docs.forEach(x => {
+            text += `${x.userName}: ${x.startAt.toLocaleString()} - ${x.endAt.toLocaleString()}\n`
+        })
+        text = text.trimEnd()
+    }
+    await whapi.sendMessageText({typing_time: 0, to: msg.chat_id, body: text, quoted: msg.id})
+}
+
+function get_interval(str) {
+    const d = chrono.parse(str)
+    if (!d) return
+
+    const start = d[0].start.date()
+    const end = d[0].end?.date() ?? new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 59)
+
+    console.log(`found interval [${start}, ${end}]`)
+    return { start, end }
+}
+
+async function car_reserve(msg, dates) {
+    const interval = get_interval(dates)
+    if (!interval) return
+    const { start, end } = interval
+
+    const client = await mongo()
+
+    const docs = await (await client.collection("Car").find({
+        $or: [
+            {startAt: {$gte: start, $lte: end}},
+            {endAt: {$gte: start, $lte: end}},
+            {
+                $and: [
+                    {startAt: {$lt: start}},
+                    {endAt: {$gt: end}}
+                ]
+            }
+        ]
+    })).toArray()
+
+    if (docs.length > 0) {
+        let text = "Reservation failed as it overlaps the following:\n"
+        docs.forEach(x => {
+            text += `${x.userName}: ${x.startAt.toLocaleString()} - ${x.endAt.toLocaleString()}\n`
+        })
+        text = text.trimEnd()
+        await whapi.sendMessageText({typing_time: 0, to: msg.chat_id, body: text, quoted: msg.id})
+        return
+    }
+
+    await client.collection("Car").insertOne({
+        startAt: start,
+        endAt: end,
+        userId: msg.from,
+        userName: msg.from_name,
+        addedAt: new Date()
+    })
+    await whapi.reactToMessage({emoji: '👌'}, {MessageID: msg.id})
+}
+
+async function car_unreserve(msg, dates) {
+    const interval = get_interval(dates)
+    if (!interval) return
+    const { start, end } = interval
+
+    const client = await mongo()
+    await client.collection("Car").deleteOne({startAt: start, endAt: end})
+    await whapi.reactToMessage({emoji: '👌'}, {MessageID: msg.id})
+}
+
+async function car(msg) {
+    const toks = msg.text.body.split(' ').filter(x => x.length > 0)
+    if (!toks || toks.length <= 1) return
+
+    const cmd = toks[1]
+    if (cmd === "list") {
+        await car_list(msg)
+    } else if (cmd === "reserve") {
+        const items = toks.slice(2)
+        if (items.length === 0) return
+
+        await car_reserve(msg, items.join(' '))
+    } else if (cmd === "unreserve") {
+        const items = toks.slice(2)
+        if (items.length === 0) return
+
+        await car_unreserve(msg, items.join(' '))
+    }
+}
+
 function get_idioms(msg) {
     let text = msg.text.body
     let idiom_ids = []
@@ -211,6 +310,11 @@ app.post('/webhooks', async (req, res) => {
 
         if (msg.text.body.startsWith("/shop")) {
             promises.push(shop(msg))
+            return
+        }
+
+        if (msg.text.body.startsWith('/car')) {
+            promises.push(car(msg))
             return
         }
 

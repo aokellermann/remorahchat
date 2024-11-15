@@ -10,6 +10,7 @@
   "license": "MIT",
   "dependencies": {
     "api": "^6.1.1",
+    "chrono-node": "^2.7.7",
     "express": "^4.18.2",
     "mongodb": "^6.3.0",
     "serverless-http": "^3.2.0",
