@@ -84,41 +84,39 @@ async function chore_stats(msg) {
 
 async function shop_list(msg) {
     const client = await mongo()
-    const docs = await (await client.collection("ShoppingList").find()).toArray()
+    const docs = await (await client.collection("ShoppingList").find({}, {sort: {itemId: 1}})).toArray()
     let text
     if (docs.length === 0) {
         text = "The shopping list is empty :)"
     } else {
         text = ""
-        for (let i = 0; i < docs.length; i++) {
-            text += `${i + 1}. ${docs[i].item}\n`
-        }
+        docs.forEach(x => {
+            text += `${x.itemId}: ${x.item}\n`
+        })
         text = text.trimEnd()
     }
     await whapi.sendMessageText({typing_time: 0, to: msg.chat_id, body: text, quoted: msg.id})
 }
 
-async function shop_add(msg, items) {
+async function shop_add(msg, item) {
     const client = await mongo()
-    await client.collection("ShoppingList").insertMany(items.map(x => {
-        return {
-            item: x,
-            userId: msg.from,
-            userName: msg.from_name,
-            addedAt: new Date()
-        }
-    }))
+    await client.collection("ShoppingList").insertOne({
+        item: item,
+        userId: msg.from,
+        userName: msg.from_name,
+        addedAt: new Date()
+    })
     await whapi.reactToMessage({emoji: '👌'}, {MessageID: msg.id})
 }
 
 async function shop_remove(msg, items) {
     const client = await mongo()
-    await client.collection("ShoppingList").deleteMany({item: {"$in": items}})
+    await client.collection("ShoppingList").deleteMany({itemId: {"$in": items}})
     await whapi.reactToMessage({emoji: '👌'}, {MessageID: msg.id})
 }
 
 async function shop(msg) {
-    const toks = msg.text.body.split(' ').filter(x => x.length > 0)
+    const toks = msg.text.body.split(/\s+/).filter(x => x.length > 0)
     if (!toks || toks.length <= 1) return
 
     const cmd = toks[1]
@@ -128,10 +126,12 @@ async function shop(msg) {
         const items = toks.slice(2)
         if (items.length === 0) return
 
-        await shop_add(msg, items)
+        await shop_add(msg, items.join(" "))
     } else if (cmd === "remove") {
-        const items = toks.slice(2)
+        console.log(toks)
+        const items = toks.slice(2).map(x => parseInt(x)).filter(x => !isNaN(x))
         if (items.length === 0) return
+        console.log(toks)
 
         await shop_remove(msg, items)
     }
@@ -162,13 +162,13 @@ function get_interval(str) {
     const end = d[0].end?.date() ?? new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 59)
 
     console.log(`found interval [${start}, ${end}]`)
-    return { start, end }
+    return {start, end}
 }
 
 async function car_reserve(msg, dates) {
     const interval = get_interval(dates)
     if (!interval) return
-    const { start, end } = interval
+    const {start, end} = interval
 
     const client = await mongo()
 
@@ -208,7 +208,7 @@ async function car_reserve(msg, dates) {
 async function car_unreserve(msg, dates) {
     const interval = get_interval(dates)
     if (!interval) return
-    const { start, end } = interval
+    const {start, end} = interval
 
     const client = await mongo()
     await client.collection("Car").deleteOne({startAt: start, endAt: end})
